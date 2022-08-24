@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "632029878590",
+    "firebase_url": "https://testcomplete-auth-default-rtdb.firebaseio.com",
+    "project_id": "testcomplete-auth",
+    "storage_bucket": "testcomplete-auth.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:632029878590:android:cc679e8450c2514f20f46f",
+        "android_client_info": {
+          "package_name": "com.Test.LoginAuth"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "632029878590-oiksnpequqotg346g0n3o4da2d38nvt1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBI_YIyfkXck4QqdhOm3IEt1wSfS2U8Pwg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "632029878590-oiksnpequqotg346g0n3o4da2d38nvt1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
