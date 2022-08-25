@@ -11,8 +11,8 @@ public class UIManager : MonoBehaviour
     //Screen object variables
     public GameObject loginUI;
     public GameObject registerUI;
-    public TMP_InputField email;
-    public TMP_InputField password;
+    public GameObject userGameUI;
+   
 
 
     private void Awake()
@@ -31,17 +31,31 @@ public class UIManager : MonoBehaviour
     //Functions to change the login screen UI
     public void LoginScreen() //Back button
     {
+        ClearScreen();
         loginUI.SetActive(true);
-        registerUI.SetActive(false);
-        email.text = "";
-        password.text = "";
+        
+        
 
     }
     public void RegisterScreen() // Register button
     {
-        loginUI.SetActive(false);
+        ClearScreen();
         registerUI.SetActive(true);
         
 		
+    }
+
+    public void UserGameScreen()//cuando se encuentra logueado
+    {
+        ClearScreen();
+        userGameUI.SetActive(true);
+    }
+    
+    //todas las screen se ponen en falso para que no esten visibles
+    public void ClearScreen()
+    {
+        loginUI.SetActive(false);
+        registerUI.SetActive(false);
+        userGameUI.SetActive(false);
     }
 }
