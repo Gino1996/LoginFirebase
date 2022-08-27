@@ -12,7 +12,7 @@ public class UIManager : MonoBehaviour
     public GameObject loginUI;
     public GameObject registerUI;
     public GameObject userGameUI;
-   
+    public GameObject usersDataUI;
 
 
     private void Awake()
@@ -50,6 +50,13 @@ public class UIManager : MonoBehaviour
         ClearScreen();
         userGameUI.SetActive(true);
     }
+
+    public void UsersData()
+    {
+        ClearScreen();
+        usersDataUI.SetActive(true);
+        
+    }
     
     //todas las screen se ponen en falso para que no esten visibles
     public void ClearScreen()
@@ -57,5 +64,6 @@ public class UIManager : MonoBehaviour
         loginUI.SetActive(false);
         registerUI.SetActive(false);
         userGameUI.SetActive(false);
+        usersDataUI.SetActive(false);
     }
 }

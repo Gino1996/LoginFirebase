@@ -1,17 +1,27 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Firebase;
+using Firebase.Database;
 using Firebase.Auth;
 using TMPro;
 
 public class FirebaseManager : MonoBehaviour
 {
+    private void Start()
+    {
+        userID = SystemInfo.deviceUniqueIdentifier;
+    }
+
+    private string userID;
     //Llamar a las depencencias de la libreria firebase
     [Header("Firebase")]
     public DependencyStatus dependencyStatus;
     public FirebaseAuth auth;
     public FirebaseUser User;
+    public DatabaseReference DBReference;
+    
     //crear variables para el login
     [Header("Login")]
     public TMP_InputField emailLoginField;
@@ -25,9 +35,13 @@ public class FirebaseManager : MonoBehaviour
     public TMP_InputField emailRegisterField;
     public TMP_InputField passwordRegisterField;
     public TMP_InputField confirmPasswordRegisterField;
-    public TMP_InputField estaturaField;
-    public TMP_InputField pesoField;
+    public TMP_InputField estaturaRegisterField;
+    public TMP_InputField pesoRegisterField;
     public TMP_Text warningRegisterText;
+    //
+    public Transform RegisterUsersContent;
+    public TMP_InputField GameUsernameField;
+    
 
     private void Awake()
     {
@@ -51,9 +65,28 @@ public class FirebaseManager : MonoBehaviour
     private void InitializeFirebase()
     {
         Debug.Log("Configuración exitosa de firebase Auth");
+       
         auth = FirebaseAuth.DefaultInstance;
+        //Referencia raiz de la instancia firebase database
+        DBReference = FirebaseDatabase.DefaultInstance.RootReference;
     }
 
+    private void ClearLoginFields()
+    {
+        emailLoginField.text = "";
+        passwordLoginField.text = "";
+        
+    }
+
+    private void ClearRegisterFields()
+    {
+        emailRegisterField.text = "";
+        usernameRegisterField.text = "";
+        passwordRegisterField.text = "";
+        confirmPasswordRegisterField.text = "";
+        pesoRegisterField.text = "";
+        estaturaRegisterField.text = "";
+    }
     public void LoginButton()
     {
         //enviamos los parametros de registro para loguearse
@@ -63,8 +96,20 @@ public class FirebaseManager : MonoBehaviour
     public void RegisterButton()
     {
         //enviamos los parametros de registro para añadir un nuevo usuario
-        StartCoroutine(Register(emailRegisterField.text,passwordRegisterField.text,usernameRegisterField.text, estaturaField.text,pesoField.text));
+        StartCoroutine(Register(emailRegisterField.text,passwordRegisterField.text,usernameRegisterField.text, 
+            estaturaRegisterField.text,pesoRegisterField.text));
     }
+
+    public void SignOutButton()
+    {
+        auth.SignOut(); //desconecta del metodo de autenticación propio de la librería firebase.auth
+        UIManager.instance.LoginScreen();
+        ClearRegisterFields();
+        ClearLoginFields();
+       
+    }
+
+ 
 
     private IEnumerator Login(string _email, string _password)
     {
@@ -110,25 +155,25 @@ public class FirebaseManager : MonoBehaviour
             confirmLoginText.text = "Login exitoso !";
            //llamar al metodo de administrador de interfaz de usuario de datos 
            yield return new WaitForSeconds(2);
+
+           //cuando iniciemos sesion queremos configurar el campo de nombre de usuario
+           
            UIManager.instance.UserGameScreen();
+           GameUsernameField.text = User.DisplayName;
            confirmLoginText.text = "";
+           ClearLoginFields();
+           ClearRegisterFields();
         }
     }
 
     private IEnumerator Register(string _email, string _password, string _username, string _estatura, string _peso)
     {
-        if (_username == "")
+        if (_username == ""||_estatura==""||_peso=="")
         {
             //si está vacio el user name se envia un warning
-            warningRegisterText.text = "Usuario vacío !";
+            warningRegisterText.text = "Llene todos los datos !";
         }
-        else if (_estatura=="")
-        {
-            warningRegisterText.text = "Estatura vacía";
-        }else if (_peso=="")
-        {
-            warningRegisterText.text = "Peso vacío";
-        }
+   
         else if (passwordRegisterField.text != confirmPasswordRegisterField.text)
         {
             //si el password no coincide
@@ -138,6 +183,7 @@ public class FirebaseManager : MonoBehaviour
         {
             var RegisterTask = auth.CreateUserWithEmailAndPasswordAsync(_email, _password);
             yield return new WaitUntil(predicate: () => RegisterTask.IsCompleted);
+            
             if (RegisterTask.Exception != null)
             {
                 Debug.LogWarning(message: $"Failed to register task with {RegisterTask.Exception}");
@@ -148,8 +194,9 @@ public class FirebaseManager : MonoBehaviour
                 //continue
                 switch (errorcode)
                 {
+                   
                     case AuthError.MissingEmail:
-                        message = "Email vación !";
+                        message = "Email vació !";
                         break;
                     case AuthError.MissingPassword:
                         message = "Contraseña vacía !";
@@ -176,6 +223,7 @@ public class FirebaseManager : MonoBehaviour
                     var ProfileTask = User.UpdateUserProfileAsync(profile);
                     //espera mientras se completa la tarea
                     yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
+                    SaveData();
                     if (ProfileTask.Exception != null)
                     {
                         //control de errores 
@@ -189,14 +237,128 @@ public class FirebaseManager : MonoBehaviour
                         //el usuario ahora es enviado
                         //retorna al login
                         UIManager.instance.LoginScreen();
-                        emailLoginField.text = "";
-                        passwordLoginField.text = "";
                         warningRegisterText.text = "";
+                      //  emailLoginField.text = "";
+                      //  passwordLoginField.text = "";
+                      ClearLoginFields();
+                      ClearRegisterFields();
                     }
                 }
             }
         }
     }
 
+    public void SaveData()
+    {
+        //User us = new User(usernameRegisterField.text,double.Parse(pesoRegisterField.text),double.Parse(estaturaRegisterField.text));
+        User us = new User();
+        us.username = usernameRegisterField.text;
+        us.estatura = double.Parse(estaturaRegisterField.text);
+        us.peso = double.Parse(pesoRegisterField.text);
+ 
+        string json= JsonUtility.ToJson(us);
+        
+        DBReference.Child("User").Child(us.username).SetRawJsonValueAsync(json).ContinueWith(task =>
+        //DBReference.Child("User").Child(userID).SetRawJsonValueAsync(json).ContinueWith(task =>
+        {
+            if (task.IsCompleted)
+            {
+                Debug.Log("Successfully add to firebase");
+            }
+            else
+            {
+                Debug.Log("Error !");
+            }     
+        });
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    //METODOS PARA GUARDAR EN LA BASE DE DATOS AL ESTAR LOGUEADOS CON EL USUARIO
+    
+    public void SaveDataUsersButton()
+    {
+        
+        StartCoroutine(UpdateUsernameAuth(usernameRegisterField.text));
+        StartCoroutine(UpdateUsernameDatabase(usernameRegisterField.text));
+        StartCoroutine(UpdateEstaturaDatabase(double.Parse(estaturaRegisterField.text)));
+        StartCoroutine(UpdatePesoDatabase(double.Parse(pesoRegisterField.text)));
+    }
+    
+    
+    
+    
+    private IEnumerator UpdateUsernameAuth(string _username)
+    {
+        //creamos un userprofile y enviamos el nombre de usuario
+        UserProfile profile = new UserProfile { DisplayName = _username };
+        //invovamos a firebase auth update user profile funtion para enviar el profile con el username
+        if (User != null)
+        {
+            var ProfileTask = User.UpdateUserProfileAsync(profile);
+            //esperamos hasta que la tarea se complete
+            yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
+            if (ProfileTask.Exception!=null)
+            {
+                Debug.LogWarning(message:$"Failed to register task with update auth {ProfileTask.Exception}");
+            }
+            else
+            {
+                //el usuario ya esta actualizado 
+            }
+        }
+    }
+    //BASE DE DATOS
 
+    private IEnumerator UpdateUsernameDatabase(string _username)
+    {
+        var DBTask = DBReference.Child("users").Child(User.UserId).Child("username").SetValueAsync(_username);
+        yield return new WaitUntil(predicate:()=>DBTask.IsCompleted);
+        if (DBTask.Exception!=null)
+        {
+            Debug.LogWarning(message:$"Failed to register task with {DBTask.Exception}");
+        }
+        else
+        {
+            //La base de datos actualizó el username (now)
+        }
+    }
+    private IEnumerator UpdatePesoDatabase(double _peso)
+    {
+        var DBTask = DBReference.Child("users").Child(User.UserId).Child("peso").SetValueAsync(_peso);
+        yield return new WaitUntil(predicate:()=>DBTask.IsCompleted);
+        if (DBTask.Exception!=null)
+        {
+            Debug.LogWarning(message:$"Failed to register task with {DBTask.Exception}");
+        }
+        else
+        {
+            //La base de datos actualizó el peso (now)
+        }
+    }
+    private IEnumerator UpdateEstaturaDatabase(double _estatura)
+    {
+        var DBTask = DBReference.Child("users").Child(User.UserId).Child("estatura").SetValueAsync(_estatura);
+        yield return new WaitUntil(predicate:()=>DBTask.IsCompleted);
+        if (DBTask.Exception!=null)
+        {
+            Debug.LogWarning(message:$"Failed to register task with {DBTask.Exception}");
+        }
+        else
+        {
+            //La base de datos actualizó la estatura (now)
+        }
+    }
 }
