@@ -1,0 +1,39 @@
+Database
+
+	Users
+		    0
+		
+			username: Gino1996
+			estatura: 1.89
+			peso: 70.3
+		    1
+			username: Niga
+			estatura: 1.90
+			peso: 50.1
+ 
+	
+	CoordenadasCapsulas
+
+		ListCoorBulevar
+			0	
+				codCap (C-ASDF90)
+				coorCap '93.123123,-31.2'
+				nroCap : 1
+				estCap : true
+			1	
+				codCap (C-XYZ90)
+				coorCap '88.123123,-11.2'
+				nroCap : 2
+				estCap : true
+
+
+
+	ListPoints
+		codigo (0)
+			CodCapsula : "C-ASDF90"	
+			NroCapsula: 1
+			regUsuarios: 10
+			pointsUsuarios: 100
+			
+			
+	

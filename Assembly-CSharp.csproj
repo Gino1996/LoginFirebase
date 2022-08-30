@@ -51,6 +51,7 @@
   </PropertyGroup>
   <ItemGroup>
      <Compile Include="Assets\Scripts\FirebaseManager.cs" />
+     <Compile Include="Assets\Scripts\FirebaseManagerRespaldo.cs" />
      <Compile Include="Assets\Scripts\UIManager.cs" />
      <Compile Include="Assets\Scripts\User.cs" />
      <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

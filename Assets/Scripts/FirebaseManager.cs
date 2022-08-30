@@ -9,10 +9,7 @@ using TMPro;
 
 public class FirebaseManager : MonoBehaviour
 {
-    private void Start()
-    {
-        userID = SystemInfo.deviceUniqueIdentifier;
-    }
+   
 
     private string userID;
     //Llamar a las depencencias de la libreria firebase
@@ -39,10 +36,13 @@ public class FirebaseManager : MonoBehaviour
     public TMP_InputField pesoRegisterField;
     public TMP_Text warningRegisterText;
     //
+    [Header("Game")]
     public Transform RegisterUsersContent;
     public TMP_InputField GameUsernameField;
-    
 
+    [Header("VerificationMessage")] 
+    public TMP_Text verificationMessageField;
+    
     private void Awake()
     {
         //verificamos todas las dependencias de firebase que necesitamos 
@@ -75,7 +75,8 @@ public class FirebaseManager : MonoBehaviour
     {
         emailLoginField.text = "";
         passwordLoginField.text = "";
-        
+        confirmLoginText.text = "";
+        warningLoginText.text = "";
     }
 
     private void ClearRegisterFields()
@@ -86,6 +87,7 @@ public class FirebaseManager : MonoBehaviour
         confirmPasswordRegisterField.text = "";
         pesoRegisterField.text = "";
         estaturaRegisterField.text = "";
+        warningLoginText.text = "";
     }
     public void LoginButton()
     {
@@ -107,6 +109,13 @@ public class FirebaseManager : MonoBehaviour
         ClearRegisterFields();
         ClearLoginFields();
        
+    }
+
+    public void BackButton()
+    {
+        ClearLoginFields();
+        ClearRegisterFields();
+        UIManager.instance.LoginScreen();
     }
 
  
@@ -148,21 +157,29 @@ public class FirebaseManager : MonoBehaviour
             warningLoginText.text = message;
         }
         else {
-            //el usuario a podido loguearse y se envia el resultado
-            User = LoginTask.Result;
-            Debug.LogFormat("User signed in successfully: {0} ({1})", User.DisplayName, User.Email);
-            warningLoginText.text = "";
-            confirmLoginText.text = "Login exitoso !";
-           //llamar al metodo de administrador de interfaz de usuario de datos 
-           yield return new WaitForSeconds(2);
+            if (User.IsEmailVerified)
+            {
+                //el usuario a podido loguearse y se envia el resultado
+                User = LoginTask.Result;
+                Debug.LogFormat("User signed in successfully: {0} ({1})", User.DisplayName, User.Email);
+                warningLoginText.text = "";
+                confirmLoginText.text = "Login exitoso !";
+                //llamar al metodo de administrador de interfaz de usuario de datos 
+                yield return new WaitForSeconds(2);
 
-           //cuando iniciemos sesion queremos configurar el campo de nombre de usuario
+                //cuando iniciemos sesion queremos configurar el campo de nombre de usuario
            
-           UIManager.instance.UserGameScreen();
-           GameUsernameField.text = User.DisplayName;
-           confirmLoginText.text = "";
-           ClearLoginFields();
-           ClearRegisterFields();
+                UIManager.instance.UserGameScreen();
+                GameUsernameField.text = User.DisplayName;
+                confirmLoginText.text = "";
+                ClearLoginFields();
+                ClearRegisterFields();
+            }
+            else
+            {
+                StartCoroutine(SendVerificationEmail());
+            }
+            
         }
     }
 
@@ -223,32 +240,34 @@ public class FirebaseManager : MonoBehaviour
                     var ProfileTask = User.UpdateUserProfileAsync(profile);
                     //espera mientras se completa la tarea
                     yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
-                    SaveData();
+                    //SaveData();
                     if (ProfileTask.Exception != null)
                     {
                         //control de errores 
                         Debug.LogWarning(message: $"Failed to register task with {ProfileTask.Exception}");
                         FirebaseException firebaseEx= ProfileTask.Exception.GetBaseException() as FirebaseException;
                         AuthError errorcode = (AuthError)firebaseEx.ErrorCode;
-                        warningRegisterText.text = "Username set failed";
+                        warningRegisterText.text = "Error al crear usuario";
                     }
                     else
-                    {
+                    { 
+                        SaveData();
                         //el usuario ahora es enviado
                         //retorna al login
-                        UIManager.instance.LoginScreen();
+                        //UIManager.instance.LoginScreen();
                         warningRegisterText.text = "";
                       //  emailLoginField.text = "";
                       //  passwordLoginField.text = "";
-                      ClearLoginFields();
-                      ClearRegisterFields();
+                        ClearLoginFields();
+                        ClearRegisterFields();
+                        StartCoroutine(SendVerificationEmail());
                     }
                 }
             }
         }
     }
 
-    public void SaveData()
+    private void SaveData()
     {
         //User us = new User(usernameRegisterField.text,double.Parse(pesoRegisterField.text),double.Parse(estaturaRegisterField.text));
         User us = new User();
@@ -258,12 +277,12 @@ public class FirebaseManager : MonoBehaviour
  
         string json= JsonUtility.ToJson(us);
         
-        DBReference.Child("User").Child(us.username).SetRawJsonValueAsync(json).ContinueWith(task =>
+        DBReference.Child("User").Child(User.UserId).SetRawJsonValueAsync(json).ContinueWith(task =>
         //DBReference.Child("User").Child(userID).SetRawJsonValueAsync(json).ContinueWith(task =>
         {
             if (task.IsCompleted)
             {
-                Debug.Log("Successfully add to firebase");
+                Debug.Log("Task complete");
             }
             else
             {
@@ -271,8 +290,54 @@ public class FirebaseManager : MonoBehaviour
             }     
         });
     }
-    
-    
+
+    public void AwaitVerification(bool _confirm, string _email, string _message)
+    {
+        UIManager.instance.VerificationScreen();
+        if (_confirm)
+        {
+            verificationMessageField.text = $"Verificación enviada ! \n Verifique en su email {_email}";
+        }
+        else
+        {
+            verificationMessageField.text = $"Correo electrónico no establecido \n Verifique en su email {_email}";
+        }
+    }
+    private IEnumerator SendVerificationEmail()
+    {
+        //verificamos si hay un usuario que llame a la funcion, espera que se complete la prueba y mira si se obtiene un error
+        if (User!=null)
+        {
+            var emailTask = User.SendEmailVerificationAsync();
+            yield return new WaitUntil(predicate:(() =>emailTask.IsCompleted)) ;
+            if (emailTask.Exception!=null)
+            {
+                FirebaseException firebaseEx=(FirebaseException)emailTask.Exception.GetBaseException();
+                AuthError error = (AuthError)firebaseEx.ErrorCode;
+                string message="Error desconocido!";
+                switch (error)
+                {
+                    case AuthError.Cancelled:
+                        message = "La verificación de la tarea fue cancelada";
+                        break;
+                    case AuthError.InvalidRecipientEmail:
+                        message = "Email inválido";
+                        break;
+                    case AuthError.TooManyRequests:
+                        message = "Muchas solicitudes";
+                        break;
+                }
+                
+                AwaitVerification(false, User.Email, message);
+            }
+            else
+            {
+                //se confirma el mensaje de vefification con un true se envia y se envia el email
+                AwaitVerification(true, User.Email, null);
+                Debug.Log("Verification email successfully");
+            }
+        }
+    }
     
     
     

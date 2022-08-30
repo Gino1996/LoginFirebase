@@ -13,6 +13,7 @@ public class UIManager : MonoBehaviour
     public GameObject registerUI;
     public GameObject userGameUI;
     public GameObject usersDataUI;
+    public GameObject VerificationMessUI;
 
 
     private void Awake()
@@ -65,5 +66,12 @@ public class UIManager : MonoBehaviour
         registerUI.SetActive(false);
         userGameUI.SetActive(false);
         usersDataUI.SetActive(false);
+        VerificationMessUI.SetActive(false);
+    }
+
+    public void VerificationScreen()
+    {
+        ClearScreen();
+        VerificationMessUI.SetActive(true);
     }
 }
