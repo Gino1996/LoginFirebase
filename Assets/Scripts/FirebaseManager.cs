@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using Firebase;
 using Firebase.Database;
 using Firebase.Auth;
+using Firebase.Extensions;
 using TMPro;
 
 public class FirebaseManager : MonoBehaviour
@@ -32,16 +34,28 @@ public class FirebaseManager : MonoBehaviour
     public TMP_InputField emailRegisterField;
     public TMP_InputField passwordRegisterField;
     public TMP_InputField confirmPasswordRegisterField;
-    public TMP_InputField estaturaRegisterField;
-    public TMP_InputField pesoRegisterField;
     public TMP_Text warningRegisterText;
     //
-    [Header("Game")]
+
+    [Header("SaveDB")] 
+    public TMP_InputField SaveUsernameField;
+    public TMP_InputField estaturaRegisterField;
+    public TMP_InputField pesoRegisterField;
+    public TMP_Text warningUsersDBField;
+    [Header("Mapbox")]
     public Transform RegisterUsersContent;
     public TMP_InputField GameUsernameField;
+    
 
     [Header("VerificationMessage")] 
     public TMP_Text verificationMessageField;
+
+    [Header("ForgetPassword")] 
+    public TMP_InputField EmailforgetPassField;
+
+    public TMP_Text confirmMessageForgetPassField;
+    public TMP_Text warningMessageForgetPassField;
+    
     
     private void Awake()
     {
@@ -62,13 +76,33 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
-    private void InitializeFirebase()
+    void InitializeFirebase()
     {
         Debug.Log("Configuración exitosa de firebase Auth");
        
         auth = FirebaseAuth.DefaultInstance;
+        auth.StateChanged += AuthStateChange;
+        AuthStateChange(this,null);
         //Referencia raiz de la instancia firebase database
         DBReference = FirebaseDatabase.DefaultInstance.RootReference;
+    }
+
+    void AuthStateChange(object sender, System.EventArgs eventArgs)
+    {
+        if (auth.CurrentUser!=User)
+        {
+            bool signedIn = User != auth.CurrentUser && auth.CurrentUser != null;
+            if (!signedIn && User!=null)
+            {
+                Debug.Log("Signed out"+User.UserId);
+            }
+
+            User = auth.CurrentUser;
+            if (signedIn)
+            {
+             Debug.Log("SignIn"+User.UserId);   
+            }
+        }
     }
 
     private void ClearLoginFields()
@@ -89,6 +123,19 @@ public class FirebaseManager : MonoBehaviour
         estaturaRegisterField.text = "";
         warningLoginText.text = "";
     }
+
+    private void ClearFogetPassField()
+    {
+        EmailforgetPassField.text = "";
+        warningMessageForgetPassField.text = "";
+    }
+
+    public void ClearDatabaseUsersFields()
+    {
+        pesoRegisterField.text = "";
+        estaturaRegisterField.text = "";
+        warningLoginText.text = "";
+    }
     public void LoginButton()
     {
         //enviamos los parametros de registro para loguearse
@@ -98,8 +145,7 @@ public class FirebaseManager : MonoBehaviour
     public void RegisterButton()
     {
         //enviamos los parametros de registro para añadir un nuevo usuario
-        StartCoroutine(Register(emailRegisterField.text,passwordRegisterField.text,usernameRegisterField.text, 
-            estaturaRegisterField.text,pesoRegisterField.text));
+        StartCoroutine(Register(emailRegisterField.text,passwordRegisterField.text,usernameRegisterField.text));
     }
 
     public void SignOutButton()
@@ -108,18 +154,37 @@ public class FirebaseManager : MonoBehaviour
         UIManager.instance.LoginScreen();
         ClearRegisterFields();
         ClearLoginFields();
+        //ClearDatabaseUsersFields();
        
     }
 
-    public void BackButton()
+    public void BackButtonLogin()
     {
         ClearLoginFields();
         ClearRegisterFields();
+        ClearFogetPassField();
+        //ClearDatabaseUsersFields();
         UIManager.instance.LoginScreen();
     }
+    
 
- 
+    public void SaveButton()
+    {
+        SaveData();
+    }
 
+    public void forgetPassButton()
+    {
+        if (string.IsNullOrEmpty(EmailforgetPassField.text))
+        {
+            warningMessageForgetPassField.text = "Ingrese el correo por favor !";
+            return;
+        }
+        forgotPassword(EmailforgetPassField.text); 
+       
+        UIManager.instance.LoginScreen();
+    }
+    
     private IEnumerator Login(string _email, string _password)
     {
         //llama a firebase auth la funcion signin y envia el email y el password
@@ -153,12 +218,12 @@ public class FirebaseManager : MonoBehaviour
                     message = "La cuenta no existe !";
                     break;
             }
-
+ 
             warningLoginText.text = message;
         }
         else {
-            if (User.IsEmailVerified)
-            {
+           if (User.IsEmailVerified)
+           {
                 //el usuario a podido loguearse y se envia el resultado
                 User = LoginTask.Result;
                 Debug.LogFormat("User signed in successfully: {0} ({1})", User.DisplayName, User.Email);
@@ -166,26 +231,37 @@ public class FirebaseManager : MonoBehaviour
                 confirmLoginText.text = "Login exitoso !";
                 //llamar al metodo de administrador de interfaz de usuario de datos 
                 yield return new WaitForSeconds(2);
-
-                //cuando iniciemos sesion queremos configurar el campo de nombre de usuario
-           
+                
+                
+                //Comparar con los datos de la base
+                //Condicion si el usuario ya registró todos los datos puede acceder al juego
+                
                 UIManager.instance.UserGameScreen();
                 GameUsernameField.text = User.DisplayName;
+               
+               
+                //Si aun no ingresa todos los datos (registrar datos faltantes)
+                
+               // SaveUsernameField.text = User.DisplayName;
+               // UIManager.instance.UsersDatabaScreen();
+                
                 confirmLoginText.text = "";
                 ClearLoginFields();
                 ClearRegisterFields();
-            }
-            else
-            {
-                StartCoroutine(SendVerificationEmail());
-            }
-            
+           }
+           else
+           {
+               StartCoroutine(SendVerificationEmail());
+               confirmLoginText.text = "";
+               ClearLoginFields();
+               ClearRegisterFields();
+           }
         }
     }
 
-    private IEnumerator Register(string _email, string _password, string _username, string _estatura, string _peso)
+     private IEnumerator Register(string _email, string _password, string _username)
     {
-        if (_username == ""||_estatura==""||_peso=="")
+        if (_username == "")
         {
             //si está vacio el user name se envia un warning
             warningRegisterText.text = "Llene todos los datos !";
@@ -240,67 +316,53 @@ public class FirebaseManager : MonoBehaviour
                     var ProfileTask = User.UpdateUserProfileAsync(profile);
                     //espera mientras se completa la tarea
                     yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
-                    //SaveData();
+                    
                     if (ProfileTask.Exception != null)
                     {
                         //control de errores 
                         Debug.LogWarning(message: $"Failed to register task with {ProfileTask.Exception}");
                         FirebaseException firebaseEx= ProfileTask.Exception.GetBaseException() as FirebaseException;
                         AuthError errorcode = (AuthError)firebaseEx.ErrorCode;
-                        warningRegisterText.text = "Error al crear usuario";
+                        warningRegisterText.text = "Username set failed";
                     }
                     else
-                    { 
-                        SaveData();
-                        //el usuario ahora es enviado
-                        //retorna al login
-                        //UIManager.instance.LoginScreen();
-                        warningRegisterText.text = "";
-                      //  emailLoginField.text = "";
-                      //  passwordLoginField.text = "";
-                        ClearLoginFields();
-                        ClearRegisterFields();
-                        StartCoroutine(SendVerificationEmail());
+                    {
+                        if (User.IsEmailVerified)
+                        {
+                           //Continue 
+                        }
+                        else
+                        {
+                            //el usuario ahora es enviado
+                            //retorna al login
+                            //UIManager.instance.LoginScreen();
+                            warningRegisterText.text = "";
+                            //  emailLoginField.text = "";
+                            //  passwordLoginField.text = "";
+                            ClearLoginFields();
+                            ClearRegisterFields();
+                            StartCoroutine(SendVerificationEmail());
+
+                        }
+                        
                     }
                 }
             }
         }
     }
 
-    private void SaveData()
-    {
-        //User us = new User(usernameRegisterField.text,double.Parse(pesoRegisterField.text),double.Parse(estaturaRegisterField.text));
-        User us = new User();
-        us.username = usernameRegisterField.text;
-        us.estatura = double.Parse(estaturaRegisterField.text);
-        us.peso = double.Parse(pesoRegisterField.text);
- 
-        string json= JsonUtility.ToJson(us);
-        
-        DBReference.Child("User").Child(User.UserId).SetRawJsonValueAsync(json).ContinueWith(task =>
-        //DBReference.Child("User").Child(userID).SetRawJsonValueAsync(json).ContinueWith(task =>
-        {
-            if (task.IsCompleted)
-            {
-                Debug.Log("Task complete");
-            }
-            else
-            {
-                Debug.Log("Error !");
-            }     
-        });
-    }
+    
 
-    public void AwaitVerification(bool _confirm, string _email, string _message)
+    private void AwaitVerification(bool _confirm, string _email, string _message)
     {
         UIManager.instance.VerificationScreen();
         if (_confirm)
         {
-            verificationMessageField.text = $"Verificación enviada ! \n Verifique en su email {_email}";
+            verificationMessageField.text = $"Verificación enviada ! \n Verifique en su email {_email} caso contrario ingrese un email válido";
         }
         else
         {
-            verificationMessageField.text = $"Correo electrónico no establecido \n Verifique en su email {_email}";
+            verificationMessageField.text = $"Correo electrónico no verificado \n Ingrese a su buzón y verifique su cuenta o ingrese un correo válido {_email}";
         }
     }
     private IEnumerator SendVerificationEmail()
@@ -308,7 +370,7 @@ public class FirebaseManager : MonoBehaviour
         //verificamos si hay un usuario que llame a la funcion, espera que se complete la prueba y mira si se obtiene un error
         if (User!=null)
         {
-            var emailTask = User.SendEmailVerificationAsync();
+           var emailTask = User.SendEmailVerificationAsync();
             yield return new WaitUntil(predicate:(() =>emailTask.IsCompleted)) ;
             if (emailTask.Exception!=null)
             {
@@ -334,9 +396,35 @@ public class FirebaseManager : MonoBehaviour
             {
                 //se confirma el mensaje de vefification con un true se envia y se envia el email
                 AwaitVerification(true, User.Email, null);
-                Debug.Log("Verification email successfully");
+                Debug.Log("Task Verification email successfully");
             }
         }
+    }
+    
+    //Enviar solicitud de correo para cambiar contraseña
+    private void forgotPassword(string _sendEmail)
+    {
+        auth.SendPasswordResetEmailAsync(_sendEmail).ContinueWithOnMainThread(task =>
+        {
+            if (task.IsCanceled)
+            {
+                Debug.LogError("SendpassEmail async Canceled");
+            }
+
+            if (task.IsFaulted)
+            {
+                foreach (Exception exception in task.Exception.Flatten().InnerExceptions)
+                {
+                    Firebase.FirebaseException firebaseException= exception as Firebase.FirebaseException;
+                    if (firebaseException!=null)
+                    {
+                        var errorCode = (AuthError)firebaseException.ErrorCode;
+                        Debug.LogError(errorCode);
+                        confirmMessageForgetPassField.text = "Solicitud de cambio de contraseña enviada, verifique su correo";
+                    }
+                }
+            }
+        });
     }
     
     
@@ -348,10 +436,34 @@ public class FirebaseManager : MonoBehaviour
     
     
     
-    
-    
-    
     //METODOS PARA GUARDAR EN LA BASE DE DATOS AL ESTAR LOGUEADOS CON EL USUARIO
+    
+    
+    
+    private void SaveData()
+    {
+        //User us = new User(usernameRegisterField.text,double.Parse(pesoRegisterField.text),double.Parse(estaturaRegisterField.text));
+        User us = new User();
+        us.username = User.DisplayName;
+        us.estatura = double.Parse(estaturaRegisterField.text);
+        us.peso = double.Parse(pesoRegisterField.text);
+ 
+        string json= JsonUtility.ToJson(us);
+        
+        DBReference.Child("User").Child(User.UserId).SetRawJsonValueAsync(json).ContinueWith(task =>
+            //DBReference.Child("User").Child(userID).SetRawJsonValueAsync(json).ContinueWith(task =>
+        {
+            if (task.IsCompleted)
+            {
+                Debug.Log("Task save data complete");
+            }
+            else
+            {
+                Debug.Log("Error !");
+            }     
+        });
+    }
+    
     
     public void SaveDataUsersButton()
     {

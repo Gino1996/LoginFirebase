@@ -50,6 +50,15 @@
     <ImplicitlyExpandDesignTimeFacades>false</ImplicitlyExpandDesignTimeFacades>
   </PropertyGroup>
   <ItemGroup>
+     <Compile Include="Assets\GoogleSignIn\Future.cs" />
+     <Compile Include="Assets\GoogleSignIn\GoogleSignIn.cs" />
+     <Compile Include="Assets\GoogleSignIn\GoogleSignInConfiguration.cs" />
+     <Compile Include="Assets\GoogleSignIn\GoogleSignInStatusCode.cs" />
+     <Compile Include="Assets\GoogleSignIn\GoogleSignInUser.cs" />
+     <Compile Include="Assets\GoogleSignIn\Impl\BaseObject.cs" />
+     <Compile Include="Assets\GoogleSignIn\Impl\GoogleSignInImpl.cs" />
+     <Compile Include="Assets\GoogleSignIn\Impl\NativeFuture.cs" />
+     <Compile Include="Assets\GoogleSignIn\Impl\SignInHelperObject.cs" />
      <Compile Include="Assets\Scripts\FirebaseManager.cs" />
      <Compile Include="Assets\Scripts\FirebaseManagerRespaldo.cs" />
      <Compile Include="Assets\Scripts\UIManager.cs" />

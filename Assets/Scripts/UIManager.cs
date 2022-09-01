@@ -14,18 +14,13 @@ public class UIManager : MonoBehaviour
     public GameObject userGameUI;
     public GameObject usersDataUI;
     public GameObject VerificationMessUI;
-
+    public GameObject forgetPassUI;
 
     private void Awake()
     {
         if (instance == null)
         {
             instance = this;
-        }
-        else if (instance != null)
-        {
-            Debug.Log("Instance already exists, destroying object!");
-            Destroy(this);
         }
     }
 
@@ -34,9 +29,6 @@ public class UIManager : MonoBehaviour
     {
         ClearScreen();
         loginUI.SetActive(true);
-        
-        
-
     }
     public void RegisterScreen() // Register button
     {
@@ -67,6 +59,8 @@ public class UIManager : MonoBehaviour
         userGameUI.SetActive(false);
         usersDataUI.SetActive(false);
         VerificationMessUI.SetActive(false);
+        forgetPassUI.SetActive(false);
+        
     }
 
     public void VerificationScreen()
@@ -74,4 +68,17 @@ public class UIManager : MonoBehaviour
         ClearScreen();
         VerificationMessUI.SetActive(true);
     }
+
+    public void ForgetPassScreen()
+    {
+        ClearScreen();
+        forgetPassUI.SetActive(true);
+    }
+
+    public void UsersDatabaScreen()
+    {
+        ClearScreen();
+        usersDataUI.SetActive(true);
+    }
+    
 }
